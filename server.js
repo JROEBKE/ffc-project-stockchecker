@@ -1,5 +1,7 @@
 'use strict';
 
+require('dotenv').config();
+
 var express     = require('express');
 var bodyParser  = require('body-parser');
 var expect      = require('chai').expect;
@@ -11,12 +13,25 @@ var runner            = require('./test-runner');
 
 var app = express();
 
+//added helmet
+var helmet  = require('helmet');
+
 app.use('/public', express.static(process.cwd() + '/public'));
 
 app.use(cors({origin: '*'})); //For FCC testing purposes only
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+//setup helmet default to set noSniff and XSS
+app.use(helmet());
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    styleSrc: ["'self'"],
+    scriptSrc: ["'self'"]
+  }
+}))
 
 //Index page (static HTML)
 app.route('/')
