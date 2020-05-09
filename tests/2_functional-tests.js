@@ -33,7 +33,7 @@ suite('Functional Tests', function() {
            res.body.stockData.should.have.property('likes');
  
            //security header validation because no separate test available         
-           res.should.have.header('content-security-policy', 'default-src \'self\'; style-src \'self\'; script-src \'self\' code.jquery.com');            
+           res.should.have.header('content-security-policy', 'default-src \'self\'; style-src \'self\'; script-src \'self\'');            
            done();
          });        
       });    

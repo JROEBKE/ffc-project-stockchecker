@@ -11,7 +11,7 @@ Project Stock Price Checker
 
 User Stories
 Set the content security policies to only allow loading of scripts and css from your server. //DONE > tested 
-==> THIS LEADS TO ISSUE WITH index.html because jquery load is blocked!!! So I allowed scriptSrc as well https://code.jquery.com
+==> THIS LEADS TO ISSUE WITH index.html which has to be reworked in boilerplate
 I can GET /api/stock-prices with form data containing a Nasdaq stock ticker and recieve back an object stockData. //DONE
 In stockData, I can see the stock(string, the ticker), price(decimal in string format), and likes(int). //DONE
 I can also pass along field like as true(boolean) to have my like added to the stock(s). Only 1 like per ip should be accepted. //DONE
