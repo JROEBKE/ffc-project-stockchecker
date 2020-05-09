@@ -4,7 +4,7 @@ require('dotenv').config();
 
 var express     = require('express');
 var bodyParser  = require('body-parser');
-var expect      = require('chai').expect;
+
 var cors        = require('cors');
 
 var apiRoutes         = require('./routes/api.js');
@@ -13,8 +13,24 @@ var runner            = require('./test-runner');
 
 var app = express();
 
+//added mongoose as middleware
+var mongoose       = require('mongoose');
+
+
 //added helmet
 var helmet  = require('helmet');
+
+// connect to database
+mongoose
+.connect(process.env.DB, {
+useUnifiedTopology: true,
+useNewUrlParser: true,
+})
+.then(() => console.log('DB Connected!'))
+mongoose.set('useFindAndModify', false);
+
+
+
 
 app.use('/public', express.static(process.cwd() + '/public'));
 
@@ -65,8 +81,9 @@ app.listen(process.env.PORT || 3000, function () {
           console.log('Tests are not valid:');
           console.log(error);
       }
-    }, 3500);
+    }, 1500);
   }
 });
+
 
 module.exports = app; //for testing

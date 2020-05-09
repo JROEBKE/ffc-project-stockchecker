@@ -7,89 +7,103 @@
 */
 
 'use strict';
+//adding my model
+const Likes = require('../models/likes');
 
+//adding controller
+const StockHandler = require('../controllers/stockHandler.js');
+const LikesHandler = require('../controllers/likesHandler.js');
 
 //adding validator
 const { check, validationResult } = require('express-validator');
 
+//helper to have simple requestor
 const axios = require('axios');
+
+//helper for identifing IP address
+const requestIp = require('request-ip');
+
 
 module.exports = function (app) {
 
   app.route('/api/stock-prices')
-    .get(async function (req, res){[
-      //TODO validation matters
-      ];
-      var like = req.query.like;
-      console.log(like);
-      var stock = req.query.stock;
+    .get([
+      check('stock').notEmpty().isLength({max: 4}).withMessage('You have to provide a stock with less than 5 chars'), //bad way to handle multiple stock does not allow escaping
+      check('like').optional().isBoolean().withMessage('If you provide like it must be a boolean value')
+      ],
+      function (req, res){
 
-      // check if stock is single entry = string or an object
-      if (typeof stock ==='string') {
-        console.log('single stock entry');
-        var stockData = await axios.get('https://repeated-alpaca.glitch.me/v1/stock/'+stock+'/quote')
-        .then(function (response) {
-          var output ={};
-          output.stock = response.data.symbol;
-          output.price = response.data.latestPrice;
+        // validation error handling
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).send({ message: 'validation error', errors: errors.array()});
+        };     
+        
+        // get some variables defined
+        const addLike = req.query.like || false;
+        //console.log('add like: '+addLike);
+        const stock = req.query.stock;
+        //console.log('stock: '+req.query.stock);      
+        const clientIp = requestIp.getClientIp(req);          
 
-          //TODO add helper function to check for IP and addition we must store this probably
-          if(like){
-            output.likes = 1;
-          } else {
-            output.likes = 0;
-          }
+        // if we have only one stock than else separated functions for treating multiple stocks
+        if (typeof stock ==='string'){
+          stockResult(stock,clientIp,addLike).
+          then(result => {
+            return  res.status(200).json({
+              stockData: result});  
+          }).catch(err => console.error(err));
+        } else {
+          stockResults(stock,clientIp,addLike).
+          then(result => {
+            return  res.status(200).json({
+              stockData: result});  
+          }).catch(err => console.error(err));
+        }
 
-          return output;            
-        })
-        .catch(function (error) {
-          // handle error
-          console.log(error);
-        })
-      } else {
-        var stockData =[];
-        for(var i=0; i<stock.length; i++){        
-          await axios.get('https://repeated-alpaca.glitch.me/v1/stock/'+stock[i]+'/quote')
-          .then(function (response) {
-            var output ={};
-            output.stock = response.data.symbol;
-            output.price = response.data.latestPrice;
-            console.log(output);
-            stockData.push(output);
+        // For multiple stock values we need to use map (! This works with more than two like sample solution)
+        async function stockResults(stock,clientIp,addLike) { 
+          const requests = await stock.map((stock) => {
+            var response = stockResult(stock,clientIp,addLike);   
+            return response;   
+          });
+          //now we have to create relative likes by getting max and min values and use maximum distance 
+          var modifiedResponse = Promise.all(requests)
+          .then(result => {
+            return LikesHandler.getRelativeLikes(result);                        
+          });
+          
+          return modifiedResponse;
+        }        
 
-
-            //TODO add helper function to check for IP and addition we must store this probably
-            if(like){
-              output.likes = 1;
-            } else {
-              output.likes = 0;
-            }
-
-            return;            
-          })
-          .catch(function (error) {
-            // handle error
-            console.log(error);
-          })
-        };
+        // return stock results in sequence instead parallel
+        async function stockResult(stock,clientIp,addLike) { 
+          const [likes, price] = await Promise.all([LikesHandler.getLikes(stock, clientIp, addLike), StockHandler.getPrice(stock)]);
+          return {
+            stock: stock,
+            likes: likes,
+            price: price
+          };   
+        }      
       }
+    )
 
+    //extra method to wipe testDB for doing tests clearly you would never do something like that in real app
+    .delete(
+      async function (req, res){
+        let result = await Likes.deleteMany({},
+          function(err) {
+            if (err) {
+              console.log('could not delete all');
+              return res.status(500).send({message: 'could not delete all'});              
+            } else {
+              console.log('complete delete successful')            
+              return res.status(200).send({message: 'complete delete successful'});
+            }
+          }
+        )          
+        return result;        
+      }
+    ); 
 
-      var result = stockData;
-
-
-      //TODO add rel_likes to result
-      
-      return res.status(200).json({
-          stockData: result});
-
-      //{"stockData":{"stock":"GOOG","price":1279.31,"likes":1}}
-      //{"stockData":[{"stock":"GOOG","price":1279.31}]}
-
-      //{"stockData":[{"stock":"GOOG","price":1279.31,"rel_likes":0},{"stock":"MSFT","price":174.55,"rel_likes":0}]}
-      //{"stockData":[{"stock":"GOOG","price":1279.31},{"stock":"MSFT","price":174.55}]}
-
-      
-    });
-    
 };
